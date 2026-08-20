@@ -24,7 +24,7 @@ if (isUsingRDS) {
     logging: false
   });
 } else {
-  // Use /tmp directory on Render/Linux, or local project folder in development
+  // Use /tmp for SQLite on Render/Linux, or local project directory in development
   const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
   const dbPath = isProduction
     ? '/tmp/database.sqlite'
@@ -37,21 +37,29 @@ if (isUsingRDS) {
     logging: false
   });
 
-  // Save database to file after write operations safely
-  sequelize.addHook('afterCreate', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterDestroy', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterUpdate', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterSave', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterUpsert', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterBulkCreate', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterBulkDestroy', () => saveDatabaseToFile(dbPath));
-  sequelize.addHook('afterBulkUpdate', () => saveDatabaseToFile(dbPath));
+  // Non-blocking save helper to prevent unhandled promise rejections
+  const safeSave = () => {
+    saveDatabaseToFile(dbPath).catch((err) => {
+      console.error('Database persist warning:', err.message);
+    });
+  };
+
+  // Attach hooks safely
+  sequelize.addHook('afterCreate', safeSave);
+  sequelize.addHook('afterDestroy', safeSave);
+  sequelize.addHook('afterUpdate', safeSave);
+  sequelize.addHook('afterSave', safeSave);
+  sequelize.addHook('afterUpsert', safeSave);
+  sequelize.addHook('afterBulkCreate', safeSave);
+  sequelize.addHook('afterBulkDestroy', safeSave);
+  sequelize.addHook('afterBulkUpdate', safeSave);
 }
 
 export async function saveDatabaseToFile(targetPath) {
   try {
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
     const dbPath = targetPath || (
-      process.env.NODE_ENV === 'production' || process.env.RENDER
+      isProduction
         ? '/tmp/database.sqlite'
         : path.join(process.cwd(), 'database.sqlite')
     );
@@ -63,6 +71,6 @@ export async function saveDatabaseToFile(targetPath) {
       fs.writeFileSync(dbPath, buffer);
     }
   } catch (error) {
-    console.error('Failed to persist SQLite database to disk:', error);
+    console.error('Failed to write SQLite database to file:', error.message);
   }
 }

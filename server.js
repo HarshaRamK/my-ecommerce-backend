@@ -31,15 +31,15 @@ app.use(express.json());
 // Serve images from the images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// Explicit Health Check Route for Render Proxy
+// 1. Base route for Render Health Checks & Browser visits
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
-    message: 'E-Commerce Backend API is running successfully'
+    message: 'E-Commerce REST API is running successfully'
   });
 });
 
-// Use API routes
+// API Routes
 app.use('/api/products', productRoutes);
 app.use('/api/delivery-options', deliveryOptionRoutes);
 app.use('/api/cart-items', cartItemRoutes);
@@ -68,7 +68,7 @@ app.use((err, req, res, next) => {
 });
 /* eslint-enable no-unused-vars */
 
-// START EXPRESS FIRST — NEVER BLOCK APP.LISTEN WITH DATABASE SYNC
+// 2. Start server FIRST so Render proxy health check passes immediately
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
 
@@ -112,6 +112,6 @@ app.listen(PORT, async () => {
       console.log('Default data added to the database.');
     }
   } catch (error) {
-    console.error('Database initialization failed:', error);
+    console.error('Database initialization warning:', error);
   }
 });
