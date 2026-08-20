@@ -31,7 +31,15 @@ app.use(express.json());
 // Serve images from the images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// Use routes
+// 1. Explicit Health Check Route for Render
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    message: 'E-Commerce Backend API is active'
+  });
+});
+
+// Use API routes
 app.use('/api/products', productRoutes);
 app.use('/api/delivery-options', deliveryOptionRoutes);
 app.use('/api/cart-items', cartItemRoutes);
@@ -39,16 +47,16 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reset', resetRoutes);
 app.use('/api/payment-summary', paymentSummaryRoutes);
 
-// Serve static files from the dist folder
+// Serve static files from the dist folder if present
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Catch-all route to serve index.html for any unmatched routes
+// Catch-all route to serve index.html for unmatched non-API routes
 app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, 'dist', 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('index.html not found');
+    res.status(404).json({ error: 'Endpoint or page not found' });
   }
 });
 
@@ -60,46 +68,50 @@ app.use((err, req, res, next) => {
 });
 /* eslint-enable no-unused-vars */
 
-// Sync database and load default data if none exist
-await sequelize.sync();
+// 2. Start Express immediately, then initialize database asynchronously
+app.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
 
-const productCount = await Product.count();
-if (productCount === 0) {
-  const timestamp = Date.now();
+  try {
+    await sequelize.sync();
+    console.log('Database synced successfully.');
 
-  const productsWithTimestamps = defaultProducts.map((product, index) => ({
-    ...product,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+    const productCount = await Product.count();
+    if (productCount === 0) {
+      const timestamp = Date.now();
 
-  const deliveryOptionsWithTimestamps = defaultDeliveryOptions.map((option, index) => ({
-    ...option,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const productsWithTimestamps = defaultProducts.map((product, index) => ({
+        ...product,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  const cartItemsWithTimestamps = defaultCart.map((item, index) => ({
-    ...item,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const deliveryOptionsWithTimestamps = defaultDeliveryOptions.map((option, index) => ({
+        ...option,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  const ordersWithTimestamps = defaultOrders.map((order, index) => ({
-    ...order,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const cartItemsWithTimestamps = defaultCart.map((item, index) => ({
+        ...item,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  await Product.bulkCreate(productsWithTimestamps);
-  await DeliveryOption.bulkCreate(deliveryOptionsWithTimestamps);
-  await CartItem.bulkCreate(cartItemsWithTimestamps);
-  await Order.bulkCreate(ordersWithTimestamps);
+      const ordersWithTimestamps = defaultOrders.map((order, index) => ({
+        ...order,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  console.log('Default data added to the database.');
-}
+      await Product.bulkCreate(productsWithTimestamps);
+      await DeliveryOption.bulkCreate(deliveryOptionsWithTimestamps);
+      await CartItem.bulkCreate(cartItemsWithTimestamps);
+      await Order.bulkCreate(ordersWithTimestamps);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+      console.log('Default data added to the database.');
+    }
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  }
 });
