@@ -31,11 +31,11 @@ app.use(express.json());
 // Serve images from the images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// 1. Root route specifically for Render Health Checks & Browser visits
+// Explicit Health Check Route for Render Proxy
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
-    message: 'E-Commerce Backend API is active'
+    message: 'E-Commerce Backend API is running successfully'
   });
 });
 
@@ -47,16 +47,16 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reset', resetRoutes);
 app.use('/api/payment-summary', paymentSummaryRoutes);
 
-// Serve static files from the dist folder if present
+// Serve static files from dist folder if present
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Catch-all route to serve index.html for unmatched non-API routes
+// Catch-all route to serve index.html for unmatched routes
 app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, 'dist', 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).json({ error: 'Endpoint or page not found' });
+    res.status(404).json({ error: 'Endpoint or route not found' });
   }
 });
 
@@ -68,9 +68,9 @@ app.use((err, req, res, next) => {
 });
 /* eslint-enable no-unused-vars */
 
-// 2. Start Express immediately on Render's allocated PORT
+// START EXPRESS FIRST — NEVER BLOCK APP.LISTEN WITH DATABASE SYNC
 app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 
   try {
     await sequelize.sync();
@@ -112,6 +112,6 @@ app.listen(PORT, async () => {
       console.log('Default data added to the database.');
     }
   } catch (error) {
-    console.error('Database initialization error:', error);
+    console.error('Database initialization failed:', error);
   }
 });
