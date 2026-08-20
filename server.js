@@ -31,7 +31,15 @@ app.use(express.json());
 // Serve images from the images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// Use routes
+// Root route specifically for Render Health Checks & Browser visits
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    message: 'E-Commerce Backend API is running successfully'
+  });
+});
+
+// Use API routes
 app.use('/api/products', productRoutes);
 app.use('/api/delivery-options', deliveryOptionRoutes);
 app.use('/api/cart-items', cartItemRoutes);
@@ -39,16 +47,13 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reset', resetRoutes);
 app.use('/api/payment-summary', paymentSummaryRoutes);
 
-// Serve static files from the dist folder
-app.use(express.static(path.join(__dirname, 'dist')));
-
-// Catch-all route to serve index.html for any unmatched routes
+// Catch-all route for frontend static files if present
 app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, 'dist', 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('index.html not found');
+    res.status(404).json({ error: 'Endpoint not found' });
   }
 });
 
@@ -60,46 +65,53 @@ app.use((err, req, res, next) => {
 });
 /* eslint-enable no-unused-vars */
 
-// Sync database and load default data if none exist
-await sequelize.sync();
+// Initialize DB and Start Server
+async function startServer() {
+  try {
+    await sequelize.sync();
 
-const productCount = await Product.count();
-if (productCount === 0) {
-  const timestamp = Date.now();
+    const productCount = await Product.count();
+    if (productCount === 0) {
+      const timestamp = Date.now();
 
-  const productsWithTimestamps = defaultProducts.map((product, index) => ({
-    ...product,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const productsWithTimestamps = defaultProducts.map((product, index) => ({
+        ...product,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  const deliveryOptionsWithTimestamps = defaultDeliveryOptions.map((option, index) => ({
-    ...option,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const deliveryOptionsWithTimestamps = defaultDeliveryOptions.map((option, index) => ({
+        ...option,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  const cartItemsWithTimestamps = defaultCart.map((item, index) => ({
-    ...item,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const cartItemsWithTimestamps = defaultCart.map((item, index) => ({
+        ...item,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  const ordersWithTimestamps = defaultOrders.map((order, index) => ({
-    ...order,
-    createdAt: new Date(timestamp + index),
-    updatedAt: new Date(timestamp + index)
-  }));
+      const ordersWithTimestamps = defaultOrders.map((order, index) => ({
+        ...order,
+        createdAt: new Date(timestamp + index),
+        updatedAt: new Date(timestamp + index)
+      }));
 
-  await Product.bulkCreate(productsWithTimestamps);
-  await DeliveryOption.bulkCreate(deliveryOptionsWithTimestamps);
-  await CartItem.bulkCreate(cartItemsWithTimestamps);
-  await Order.bulkCreate(ordersWithTimestamps);
+      await Product.bulkCreate(productsWithTimestamps);
+      await DeliveryOption.bulkCreate(deliveryOptionsWithTimestamps);
+      await CartItem.bulkCreate(cartItemsWithTimestamps);
+      await Order.bulkCreate(ordersWithTimestamps);
 
-  console.log('Default data added to the database.');
+      console.log('Default data added to the database.');
+    }
+
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+  }
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+startServer();
