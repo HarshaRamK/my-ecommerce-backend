@@ -31,7 +31,7 @@ app.use(express.json());
 // Serve images from the images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// 1. Explicit Health Check Route for Render
+// 1. Root route specifically for Render Health Checks & Browser visits
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
@@ -68,7 +68,7 @@ app.use((err, req, res, next) => {
 });
 /* eslint-enable no-unused-vars */
 
-// 2. Start Express immediately, then initialize database asynchronously
+// 2. Start Express immediately on Render's allocated PORT
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
 
